@@ -1,0 +1,127 @@
+Run with "python main.py"
+
+creates folders:
+    
+    imgs/VLN_progress
+    models
+    tboard_logs/VLN_Net
+
+
+The model is saved in the models dir each 1024 iteration (~ once in a hour)
+Each iteration a feedback image is generated in the imgs/VLN_progress folder.
+The images could converted to a video file via ffmpeg or other tools.
+
+
+The model is hardwired into the class VLN_Net. 
+You have to change the settings according to your usecase (e.g. copy&paste).
+To load a precomputed model uncomment line 300 and provide the correct model
+for the network into the models dir.
+
+
+Uncomment line 275 to use the autostop function.
+Disable or change image output settings can be done in line 202/203. If there is
+no image output the tensor operations in lines 192-196 can be also omitted for speed.
+
+Adjust the batchsize to the hardware limits.
+
+mainCalcMetrics.py can be used to evaluate the final results. 
+Ensure that the loaded model, the data and the network structure fits.
+
+MMNIST Model:
+
+class VLN_Net(nn.Module):
+    
+    def __init__(self):
+    
+        super().__init__()
+                                                    ### size, inchan. , outchan., layer_num ,k1
+        self.decBlock1 = Decoder_Conv_Downscale_LSTM_Block(inputSize        ,3   ,48   ,2,5) 
+        self.decBlock2 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(2) ,48  ,96   ,2,5)
+        self.decBlock3 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(4) ,96  ,128  ,2,5)
+
+        self.encMergeBlock2 = Encoder_DeConv_UPscale_Merge_Block(128 ,96,5)
+        self.encMergeBlock3 = Encoder_DeConv_UPscale_Merge_Block(96  ,48,5)
+        self.encMergeBlock4 = Encoder_DeConv_UPscale_Merge_Block(48  ,3,5)
+
+    def forward(self,x):
+
+        x1,h1 = self.decBlock1(x)
+        x2,h2 = self.decBlock2(x1)
+        x3,h3 = self.decBlock3(x2)
+
+        y3 = self.encMergeBlock2(x3,h3,None)
+        y2 = self.encMergeBlock3(x2,h2,y3)
+        y1 = self.encMergeBlock4(x1,h1,y2)
+
+        return y1   
+
+
+
+KTH 5 Layer, 3 layered LSTM :
+
+class VLN_Net(nn.Module):
+    
+    def __init__(self):
+    
+        super().__init__()
+                                                    ### size, inchan. , outchan., layer_num ,k1
+        self.decBlock1 = Decoder_Conv_Downscale_LSTM_Block(inputSize        ,3   ,64   ,3,9)  
+        self.decBlock2 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(2) ,64  ,96   ,3,9)
+        self.decBlock3 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(4) ,96  ,128  ,3,9)
+        self.decBlock4 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(8) ,128 ,160  ,3,9)
+        self.decBlock5 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(16) ,160 ,192  ,3,9)
+
+        self.encMergeBlock0 = Encoder_DeConv_UPscale_Merge_Block(192  ,160,9 )
+        self.encMergeBlock1 = Encoder_DeConv_UPscale_Merge_Block(160  ,128,9 )
+        self.encMergeBlock2 = Encoder_DeConv_UPscale_Merge_Block(128 ,96,9)
+        self.encMergeBlock3 = Encoder_DeConv_UPscale_Merge_Block(96  ,64,9)
+        self.encMergeBlock4 = Encoder_DeConv_UPscale_Merge_Block(64  ,3,9)
+
+    def forward(self,x):
+
+        x1,h1 = self.decBlock1(x)
+        x2,h2 = self.decBlock2(x1)
+        x3,h3 = self.decBlock3(x2)
+        x4,h4 = self.decBlock4(x3)
+        x5,h5 = self.decBlock5(x4)
+
+        y5 = self.encMergeBlock0(x5,h5,None)
+        y4 = self.encMergeBlock1(x4,h4,y5)
+        y3 = self.encMergeBlock2(x3,h3,y4)
+        y2 = self.encMergeBlock3(x2,h2,y3)
+        y1 = self.encMergeBlock4(x1,h1,y2)
+
+        return y1   
+
+
+KTH 4 Layer, 4 layered LSTM (one of the best):
+
+class VLN_Net(nn.Module):
+    
+    def __init__(self):
+    
+        super().__init__()
+                                                    ### size, inchan. , outchan., layer_num ,k1
+        self.decBlock1 = Decoder_Conv_Downscale_LSTM_Block(inputSize        ,3   ,64   ,4,9)  
+        self.decBlock2 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(2) ,64  ,96   ,4,7)
+        self.decBlock3 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(4) ,96  ,128  ,4,5)
+        self.decBlock4 = Decoder_Conv_Downscale_LSTM_Block(inputSize.div(8) ,128 ,192  ,4,3)
+
+        self.encMergeBlock1 = Encoder_DeConv_UPscale_Merge_Block(192  ,128,7 )
+        self.encMergeBlock2 = Encoder_DeConv_UPscale_Merge_Block(128 ,96,7)
+        self.encMergeBlock3 = Encoder_DeConv_UPscale_Merge_Block(96  ,64,7)
+        self.encMergeBlock4 = Encoder_DeConv_UPscale_Merge_Block(64  ,3,7)
+
+    def forward(self,x):
+
+        x1,h1 = self.decBlock1(x)
+        x2,h2 = self.decBlock2(x1)
+        x3,h3 = self.decBlock3(x2)
+        x4,h4 = self.decBlock4(x3)
+
+        y4 = self.encMergeBlock1(x4,h4,None)
+        y3 = self.encMergeBlock2(x3,h3,y4)
+        y2 = self.encMergeBlock3(x2,h2,y3)
+        y1 = self.encMergeBlock4(x1,h1,y2)
+
+        return y1   
